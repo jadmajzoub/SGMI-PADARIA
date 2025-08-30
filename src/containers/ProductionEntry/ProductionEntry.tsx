@@ -15,15 +15,15 @@ import NumbersIcon from "@mui/icons-material/Numbers";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs, { Dayjs } from "dayjs";
-import "dayjs/locale/en";
+import "dayjs/locale/pt-br";
 import type { ProductionEntryForm, Shift } from "../../types/production";
 import { useNavigate } from "react-router-dom";
 
 const PRODUCT_OPTIONS = [
-  "Sweet Cassava Biscuit",
-  "Cheese Cassava Biscuit",
-  "Tapioca Cracker",
-  "Corn Cookie",
+  "Biscoito de Mandioca Doce",
+  "Biscoito de Mandioca com Queijo",
+  "Biscoito de Tapioca",
+  "Biscoito de Milho",
 ];
 
 export default function ProductionEntry() {
@@ -41,7 +41,7 @@ export default function ProductionEntry() {
     const payload: ProductionEntryForm = {
       product,
       shift,
-      date: date.startOf("day").format("YYYY-MM-DD"),
+      date: date.startOf("day").format("DD-MM-YYYY"),
     };
 
     // convert shift to string (fix TS error)
@@ -55,7 +55,7 @@ export default function ProductionEntry() {
   };
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en">
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
       <Box
         sx={{
           display: "grid",
@@ -73,16 +73,16 @@ export default function ProductionEntry() {
         >
           <Stack spacing={3}>
             <Typography variant="h3" textAlign="center">
-              Production Entry
+              Entrada de Produção
             </Typography>
 
             {/* Product */}
             <Box>
               <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
-                PRODUCT
+                PRODUTO
               </Typography>
               <TextField
-                placeholder="Type or pick a product"
+                placeholder="Digite ou escolha um produto"
                 value={product}
                 onChange={(e) => setProduct(e.target.value)}
                 fullWidth
@@ -93,7 +93,7 @@ export default function ProductionEntry() {
                     </InputAdornment>
                   ),
                 }}
-                helperText="Example: Sweet Cassava Biscuit"
+                helperText="Exemplo: Biscoito de Mandioca Doce"
               />
               <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap", gap: 1 }}>
                 {PRODUCT_OPTIONS.map((p) => (
@@ -107,7 +107,7 @@ export default function ProductionEntry() {
             {/* Shift */}
             <Box>
               <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
-                SHIFT
+                TURNO
               </Typography>
               <TextField
                 select
@@ -133,7 +133,7 @@ export default function ProductionEntry() {
             {/* Date */}
             <Box>
               <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
-                DATE
+                DATA
               </Typography>
               <DatePicker
                 value={date}
@@ -161,7 +161,7 @@ export default function ProductionEntry() {
               variant="contained"
               sx={{ height: 52, borderRadius: 999 }}
             >
-              Initialize
+              Inicializar
             </Button>
           </Stack>
         </Paper>

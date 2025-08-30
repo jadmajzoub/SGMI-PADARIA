@@ -1,17 +1,18 @@
-import * as React from "react";
-import { Box, Button, Divider, Paper, Stack, Typography } from "@mui/material";
-import PlayArrowRounded from "@mui/icons-material/PlayArrowRounded";
-import PauseRounded from "@mui/icons-material/PauseRounded";
-import RestartAltRounded from "@mui/icons-material/RestartAltRounded";
 import AddCircleOutlineRounded from "@mui/icons-material/AddCircleOutlineRounded";
+import PauseRounded from "@mui/icons-material/PauseRounded";
+import PlayArrowRounded from "@mui/icons-material/PlayArrowRounded";
+import RestartAltRounded from "@mui/icons-material/RestartAltRounded";
+import { Box, Button, Divider, Paper, Stack, Typography } from "@mui/material";
+import * as React from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { formatHMS } from "../../utils/format";
 import type { Shift } from "../../types/production";
+import { formatHMS } from "../../utils/format";
+import { useWebSocket } from "../../hooks/useWebSocket";
 
 type SessionState = {
   product: string;
   shift: Shift;
-  date: string; // yyyy-mm-dd
+  date: string; // dd-mm-yyyy
 };
 
 const STORAGE_PREFIX = "sgmi:session";
@@ -39,6 +40,10 @@ export default function ProductionSession() {
   const [seconds, setSeconds] = React.useState(0);
   const [batches, setBatches] = React.useState(0);
   const [running, setRunning] = React.useState(false);
+  const [batchId, setBatchId] = React.useState<string | null>(null);
+
+  // WebSocket connection (for now without token - will need authentication later)
+  const { isConnected, lastMessage, sendMessage, connectionError } = useWebSocket();
 
   // Load persisted
   React.useEffect(() => {
@@ -50,7 +55,9 @@ export default function ProductionSession() {
         setSeconds(saved.seconds ?? 0);
         setBatches(saved.batches ?? 0);
         setRunning(saved.running ?? false);
-      } catch {}
+      } catch {
+        // Failed to parse saved data, continue with defaults
+      }
     }
   }, [state]);
 
@@ -63,27 +70,92 @@ export default function ProductionSession() {
   // Timer loop
   React.useEffect(() => {
     if (!running) return;
-    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
+    const TIMER_INTERVAL_MS = 1000;
+    const id = setInterval(() => setSeconds((s) => s + 1), TIMER_INTERVAL_MS);
     return () => clearInterval(id);
   }, [running]);
 
+  // Handle WebSocket messages
+  React.useEffect(() => {
+    if (!lastMessage) return;
+
+    switch (lastMessage.type) {
+      case 'batch_status_updated':
+        console.log('Status do lote atualizado:', lastMessage.data);
+        break;
+      case 'batch_created':
+        console.log('Lote criado:', lastMessage.data);
+        setBatchId(lastMessage.data.batchId);
+        break;
+      case 'connection_established':
+        console.log('Conectado ao servidor:', lastMessage.data.message);
+        break;
+      default:
+        console.log('Mensagem WebSocket desconhecida:', lastMessage.type);
+    }
+  }, [lastMessage]);
+
   if (!state) return null;
 
-  const title = `${state.product} — Shift ${state.shift}`;
-  const displayDate = new Date(state.date + "T00:00:00").toLocaleDateString(undefined, {
+  // Convert DD-MM-YYYY format to Date object
+  const parseDateFromDDMMYYYY = (dateStr: string): Date => {
+    const [day, month, year] = dateStr.split('-');
+    return new Date(`${year}-${month}-${day}T00:00:00`);
+  };
+
+  const title = `${state.product} — Turno ${state.shift}`;
+  const displayDate = parseDateFromDDMMYYYY(state.date).toLocaleDateString("pt-BR", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   });
 
-  const handleStart = () => setRunning(true);
-  const handlePause = () => setRunning(false);
+  const handleStart = () => {
+    setRunning(true);
+    if (batchId && isConnected) {
+      sendMessage({
+        type: 'batch_action',
+        data: {
+          batchId,
+          action: { action: 'start' }
+        }
+      });
+    }
+  };
+
+  const handlePause = () => {
+    setRunning(false);
+    if (batchId && isConnected) {
+      sendMessage({
+        type: 'batch_action',
+        data: {
+          batchId,
+          action: { action: 'pause' }
+        }
+      });
+    }
+  };
+
   const handleReset = () => {
     setRunning(false);
     setSeconds(0);
     setBatches(0);
+    if (batchId && isConnected) {
+      sendMessage({
+        type: 'batch_action',
+        data: {
+          batchId,
+          action: { action: 'stop' }
+        }
+      });
+    }
   };
-  const handleBatch = () => setBatches((n) => n + 1);
+
+  const handleBatch = () => {
+    setBatches((n) => n + 1);
+    // For now just increment local count
+    // Later this could trigger actual batch creation/update
+  };
 
   return (
     <Box sx={{ minHeight: "calc(100vh - 120px)", display: "grid", placeItems: "center" }}>
@@ -108,7 +180,7 @@ export default function ProductionSession() {
             >
               <Box sx={{ flex: 1, textAlign: "center" }}>
                 <Typography variant="body2" color="text.secondary">
-                  Batches
+                  Bateladas
                 </Typography>
                 <Typography variant="h3" sx={{ fontWeight: 700, mt: 0.5 }}>
                   {batches}
@@ -119,7 +191,7 @@ export default function ProductionSession() {
 
               <Box sx={{ flex: 1, textAlign: "center" }}>
                 <Typography variant="body2" color="text.secondary">
-                  Time
+                  Tempo
                 </Typography>
                 <Typography variant="h3" sx={{ fontWeight: 700, mt: 0.5 }}>
                   {formatHMS(seconds)}
@@ -145,7 +217,7 @@ export default function ProductionSession() {
                 disabled={running}
                 sx={{ height: 48, borderRadius: 2 }}
               >
-                Start
+                Iniciar
               </Button>
             </Box>
 
@@ -159,7 +231,7 @@ export default function ProductionSession() {
                 onClick={handleBatch}
                 sx={{ height: 48, borderRadius: 2 }}
               >
-                Batch
+                Bateladas
               </Button>
             </Box>
 
@@ -174,7 +246,7 @@ export default function ProductionSession() {
                 disabled={!running}
                 sx={{ height: 48, borderRadius: 2 }}
               >
-                Pause
+                Pausar
               </Button>
             </Box>
 
@@ -188,14 +260,22 @@ export default function ProductionSession() {
                 onClick={handleReset}
                 sx={{ height: 48, borderRadius: 2 }}
               >
-                Reset
+                Reiniciar
               </Button>
             </Box>
           </Stack>
 
           <Divider sx={{ width: "100%", my: 2 }} />
+          
+          {/* Connection status */}
+          <Box sx={{ textAlign: "center" }}>
+            <Typography variant="caption" color={isConnected ? "success.main" : "error.main"}>
+              {isConnected ? "Conectado ao servidor" : connectionError || "Desconectado"}
+            </Typography>
+          </Box>
+          
           <Button variant="text" onClick={() => navigate("/")}>
-            Back to entry
+            Voltar para entrada
           </Button>
         </Stack>
       </Paper>
