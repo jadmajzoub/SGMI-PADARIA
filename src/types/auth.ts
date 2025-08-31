@@ -16,6 +16,7 @@ export interface AuthState {
   token: AuthToken | null
   isAuthenticated: boolean
   isLoading: boolean
+  lastUpdate: number // Force re-render
 }
 
 export interface LoginCredentials {

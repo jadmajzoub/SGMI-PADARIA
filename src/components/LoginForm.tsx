@@ -8,7 +8,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
-import { LoginCredentials, AuthError } from '../types/auth';
+import type { LoginCredentials, AuthError } from '../types/auth';
 
 interface LoginFormProps {
   onLogin: (credentials: LoginCredentials) => Promise<void>;

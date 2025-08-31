@@ -6,7 +6,7 @@ export interface WebSocketMessage {
   timestamp?: Date;
 }
 
-const WEBSOCKET_URL = 'ws://localhost:3001/ws';
+const WEBSOCKET_URL = 'ws://localhost:4000/ws';
 const RECONNECT_INTERVAL = 3000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
@@ -17,7 +17,7 @@ export function useWebSocket(token?: string) {
   
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttemptsRef = useRef(0);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<number | null>(null);
 
   const connect = () => {
     if (!token) {

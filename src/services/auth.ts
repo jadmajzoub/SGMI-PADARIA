@@ -1,5 +1,5 @@
 import { api } from './api';
-import { LoginCredentials } from '../types/auth';
+import type { LoginCredentials } from '../types/auth';
 
 export interface BackendUser {
   id: string;

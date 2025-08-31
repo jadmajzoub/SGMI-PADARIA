@@ -12,7 +12,7 @@ export const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('sgmi_padaria_auth_token');
+    const token = localStorage.getItem('sgmi_auth_token');
     if (token) {
       try {
         const tokenData = JSON.parse(token);
@@ -34,8 +34,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token expired or invalid - clear auth data
-      localStorage.removeItem('sgmi_padaria_auth_token');
-      localStorage.removeItem('sgmi_padaria_auth_user');
+      localStorage.removeItem('sgmi_auth_token');
+      localStorage.removeItem('sgmi_auth_user');
       window.location.href = '/';
     }
     return Promise.reject(error);

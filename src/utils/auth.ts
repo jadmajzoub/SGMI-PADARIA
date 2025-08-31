@@ -1,8 +1,8 @@
-import { AuthToken, AuthUser, LoginCredentials } from '../types/auth'
-import { authService, BackendUser } from '../services/auth'
+import type { AuthToken, AuthUser, LoginCredentials } from '../types/auth'
+import { authService, type BackendUser } from '../services/auth'
 
-const AUTH_TOKEN_KEY = 'sgmi_padaria_auth_token'
-const AUTH_USER_KEY = 'sgmi_padaria_auth_user'
+const AUTH_TOKEN_KEY = 'sgmi_auth_token'
+const AUTH_USER_KEY = 'sgmi_auth_user'
 
 export const tokenStorage = {
   saveToken: (token: AuthToken): void => {

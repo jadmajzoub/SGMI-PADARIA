@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, useEffect } from 'react'
-import { AuthState, LoginCredentials, AuthError } from '../types/auth'
+import type { AuthState, LoginCredentials, AuthError } from '../types/auth'
 import { 
   authStorage, 
   tokenStorage, 
@@ -14,7 +14,8 @@ export function useAuth() {
     user: null,
     token: null,
     isAuthenticated: false,
-    isLoading: true
+    isLoading: true,
+    lastUpdate: Date.now()
   })
   const [authError, setAuthError] = useState<AuthError | null>(null)
 
@@ -29,7 +30,8 @@ export function useAuth() {
             user: storedUser,
             token: storedToken,
             isAuthenticated: true,
-            isLoading: false
+            isLoading: false,
+            lastUpdate: Date.now()
           })
         } else {
           authStorage.clear()
@@ -37,7 +39,8 @@ export function useAuth() {
             user: null,
             token: null,
             isAuthenticated: false,
-            isLoading: false
+            isLoading: false,
+            lastUpdate: Date.now()
           })
         }
       } catch (error) {
@@ -47,7 +50,8 @@ export function useAuth() {
           user: null,
           token: null,
           isAuthenticated: false,
-          isLoading: false
+          isLoading: false,
+          lastUpdate: Date.now()
         })
       }
     }
@@ -57,7 +61,7 @@ export function useAuth() {
 
   const login = useCallback(async (credentials?: LoginCredentials) => {
     try {
-      setAuthState(prev => ({ ...prev, isLoading: true }))
+      setAuthState(prev => ({ ...prev, isLoading: true, lastUpdate: Date.now() }))
       setAuthError(null)
       
       if (!credentials?.username || !credentials?.password) {
@@ -69,19 +73,30 @@ export function useAuth() {
       tokenStorage.saveToken(token)
       userStorage.saveUser(user)
       
-      setAuthState({
+      const newState = {
         user,
         token,
         isAuthenticated: true,
-        isLoading: false
+        isLoading: false,
+        lastUpdate: Date.now()
+      }
+      setAuthState(prev => {
+        return newState
       })
+      
+      // Backup redirect mechanism since React routing has re-render issues
+      setTimeout(() => {
+        if (window.location.pathname === '/') {
+          window.location.href = '/production-entry'
+        }
+      }, 500)
     } catch (error) {
       const authError: AuthError = {
         message: error instanceof Error ? error.message : 'Falha na autenticação',
         code: 'AUTH_ERROR'
       }
       setAuthError(authError)
-      setAuthState(prev => ({ ...prev, isLoading: false }))
+      setAuthState(prev => ({ ...prev, isLoading: false, lastUpdate: Date.now() }))
       console.error('Authentication error:', authError)
     }
   }, [])
@@ -99,7 +114,8 @@ export function useAuth() {
         user: null,
         token: null,
         isAuthenticated: false,
-        isLoading: false
+        isLoading: false,
+        lastUpdate: Date.now()
       })
       setAuthError(null)
     } catch (error) {
@@ -109,7 +125,8 @@ export function useAuth() {
         user: null,
         token: null,
         isAuthenticated: false,
-        isLoading: false
+        isLoading: false,
+        lastUpdate: Date.now()
       })
       setAuthError(null)
     }
@@ -144,7 +161,8 @@ export function useAuth() {
       
       setAuthState(prev => ({
         ...prev,
-        token: updatedToken
+        token: updatedToken,
+        lastUpdate: Date.now()
       }))
       
       return true

@@ -18,13 +18,7 @@ import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/pt-br";
 import type { ProductionEntryForm, Shift } from "../../types/production";
 import { useNavigate } from "react-router-dom";
-
-const PRODUCT_OPTIONS = [
-  "Biscoito de Mandioca Doce",
-  "Biscoito de Mandioca com Queijo",
-  "Biscoito de Tapioca",
-  "Biscoito de Milho",
-];
+import { productService } from "../../services/production";
 
 export default function ProductionEntry() {
   const navigate = useNavigate();
@@ -32,6 +26,28 @@ export default function ProductionEntry() {
   const [product, setProduct] = React.useState<string>("");
   const [shift, setShift] = React.useState<Shift>(1);
   const [date, setDate] = React.useState<Dayjs | null>(dayjs());
+  const [products, setProducts] = React.useState<string[]>([]);
+  const [loading, setLoading] = React.useState(false);
+
+  // Load products from backend
+  React.useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await productService.getAll();
+        const productNames = response.data.map(p => p.name);
+        setProducts(productNames);
+      } catch (error) {
+        console.error('Failed to load products:', error);
+        // Fallback to empty array on error
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadProducts();
+  }, []);
 
   const isValid = product.trim().length > 0 && !!date && [1, 2, 3].includes(shift);
 
@@ -96,11 +112,17 @@ export default function ProductionEntry() {
                 helperText="Exemplo: Biscoito de Mandioca Doce"
               />
               <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap", gap: 1 }}>
-                {PRODUCT_OPTIONS.map((p) => (
-                  <Button key={p} size="small" variant="outlined" onClick={() => setProduct(p)}>
-                    {p}
-                  </Button>
-                ))}
+                {loading ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Carregando produtos...
+                  </Typography>
+                ) : (
+                  products.map((p) => (
+                    <Button key={p} size="small" variant="outlined" onClick={() => setProduct(p)}>
+                      {p}
+                    </Button>
+                  ))
+                )}
               </Stack>
             </Box>
 
