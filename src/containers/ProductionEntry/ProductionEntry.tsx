@@ -1,4 +1,6 @@
-import * as React from "react";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
+import NumbersIcon from "@mui/icons-material/Numbers";
 import {
   Box,
   Button,
@@ -9,23 +11,23 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import NumbersIcon from "@mui/icons-material/Numbers";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/pt-br";
-import type { ProductionEntryForm, Shift } from "../../types/production";
+import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { productService } from "../../services/production";
+import type { ProductionEntryForm, Shift } from "../../types/production";
 
 export default function ProductionEntry() {
   const navigate = useNavigate();
 
   const [product, setProduct] = React.useState<string>("");
-  const [shift, setShift] = React.useState<Shift>(1);
+  const [shift, setShift] = React.useState<Shift>("MANHÃ");
   const [date, setDate] = React.useState<Dayjs | null>(dayjs());
+  const [bateladas, setBateladas] = React.useState<number>(1);
+  const [duration, setDuration] = React.useState<number>(30);
   const [products, setProducts] = React.useState<string[]>([]);
   const [loading, setLoading] = React.useState(false);
 
@@ -49,25 +51,46 @@ export default function ProductionEntry() {
     loadProducts();
   }, []);
 
-  const isValid = product.trim().length > 0 && !!date && [1, 2, 3].includes(shift);
+  const isValid = product.trim().length > 0 && !!date && bateladas > 0 && duration > 0;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isValid || !date) return;
 
     const payload: ProductionEntryForm = {
       product,
       shift,
       date: date.startOf("day").format("DD-MM-YYYY"),
+      bateladas,
+      duration,
     };
 
-    // convert shift to string (fix TS error)
-    const params = new URLSearchParams({
-      product: payload.product,
-      shift: String(payload.shift),
-      date: payload.date,
-    }).toString();
-
-    navigate(`/production/session?${params}`, { state: payload });
+    try {
+      setLoading(true);
+      
+      // Import the service dynamically to avoid auto-formatter issues
+      const { simpleBatchService } = await import("../../services/production");
+      
+      // Call the new simplified batch creation API using the proper service
+      const result = await simpleBatchService.create(payload);
+      
+      if (result.success) {
+        alert(`Lote criado com sucesso!\nProduto: ${payload.product}\nTurno: ${payload.shift}\nBateladas: ${payload.bateladas}\nDuração: ${payload.duration} minutos`);
+        
+        // Reset form
+        setProduct("");
+        setShift("MANHÃ");
+        setBateladas(1);
+        setDuration(30);
+        setDate(dayjs());
+      } else {
+        throw new Error(result.message || 'Erro ao criar lote');
+      }
+    } catch (error) {
+      console.error('Error creating batch:', error);
+      alert(`Erro ao criar lote: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -134,7 +157,7 @@ export default function ProductionEntry() {
               <TextField
                 select
                 value={shift}
-                onChange={(e) => setShift(Number(e.target.value) as Shift)}
+                onChange={(e) => setShift(e.target.value as Shift)}
                 fullWidth
                 InputProps={{
                   startAdornment: (
@@ -144,12 +167,54 @@ export default function ProductionEntry() {
                   ),
                 }}
               >
-                {[1, 2, 3].map((s) => (
-                  <MenuItem key={s} value={s}>
-                    {s}
-                  </MenuItem>
-                ))}
+                <MenuItem value="MANHÃ">MANHÃ</MenuItem>
+                <MenuItem value="TARDE">TARDE</MenuItem>
+                <MenuItem value="NOITE">NOITE</MenuItem>
               </TextField>
+            </Box>
+
+            {/* Bateladas */}
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
+                BATELADAS
+              </Typography>
+              <TextField
+                type="number"
+                value={bateladas}
+                onChange={(e) => setBateladas(Number(e.target.value))}
+                fullWidth
+                inputProps={{ min: 1 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <NumbersIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+                helperText="Número de bateladas produzidas"
+              />
+            </Box>
+
+            {/* Duration */}
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
+                DURAÇÃO (MINUTOS)
+              </Typography>
+              <TextField
+                type="number"
+                value={duration}
+                onChange={(e) => setDuration(Number(e.target.value))}
+                fullWidth
+                inputProps={{ min: 1 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <CalendarMonthIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+                helperText="Tempo total de produção em minutos"
+              />
             </Box>
 
             {/* Date */}

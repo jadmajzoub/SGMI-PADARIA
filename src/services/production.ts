@@ -102,3 +102,17 @@ export const mapShiftToBackend = (shift: number): string => {
   };
   return shiftMap[shift] || 'MORNING';
 };
+
+// NEW SIMPLIFIED BATCH CREATION API
+export const simpleBatchService = {
+  create: async (data: {
+    product: string;
+    shift: string;
+    date: string;
+    bateladas: number;
+    duration: number;
+  }) => {
+    const response = await api.post('/production/batches/simple', data);
+    return response.data;
+  }
+};

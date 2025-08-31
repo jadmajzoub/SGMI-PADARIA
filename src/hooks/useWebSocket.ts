@@ -1,3 +1,9 @@
+// COMMENTED OUT FOR WEBSOCKET REFACTOR - DO NOT DELETE
+// This entire hook has been temporarily disabled during the websocket refactor
+
+/*
+ORIGINAL WEBSOCKET HOOK - COMMENTED OUT
+
 import { useEffect, useRef, useState } from 'react';
 
 export interface WebSocketMessage {
@@ -135,5 +141,27 @@ export function useWebSocket(token?: string) {
     sendMessage,
     connect,
     disconnect
+  };
+}
+
+END OF ORIGINAL WEBSOCKET HOOK
+*/
+
+// TEMPORARY PLACEHOLDER HOOK - WEBSOCKET FUNCTIONALITY DISABLED
+export interface WebSocketMessage {
+  type: string;
+  data?: any;
+  timestamp?: Date;
+}
+
+export function useWebSocket(token?: string) {
+  // Return disabled state
+  return {
+    isConnected: false,
+    lastMessage: null,
+    connectionError: 'WebSocket desabilitado durante refatoração',
+    sendMessage: () => console.warn('WebSocket desabilitado'),
+    connect: () => console.warn('WebSocket desabilitado'),
+    disconnect: () => console.warn('WebSocket desabilitado')
   };
 }
