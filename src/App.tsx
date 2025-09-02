@@ -1,25 +1,12 @@
 import * as React from "react";
-import { CssBaseline, Box, CircularProgress } from "@mui/material";
+import { CssBaseline } from "@mui/material";
 import type { PaletteMode } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
 import { createAppTheme } from "./theme";
 import { BrowserRouter } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import AppRoutes from "./routes/AppRoutes";
-
-const LoadingScreen = () => (
-  <Box
-    sx={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0f172a 0%, #1f2937 100%)',
-    }}
-  >
-    <CircularProgress size={50} />
-  </Box>
-);
+import { SkeletonProductionEntry } from "./components/Skeleton";
 
 export default function App() {
   const [mode, setMode] = React.useState<PaletteMode>("dark");
@@ -30,7 +17,7 @@ export default function App() {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <LoadingScreen />
+        <SkeletonProductionEntry />
       </ThemeProvider>
     );
   }

@@ -10,6 +10,7 @@ import {
   Stack,
   TextField,
   Typography,
+  Skeleton,
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -136,9 +137,11 @@ export default function ProductionEntry() {
               />
               <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap", gap: 1 }}>
                 {loading ? (
-                  <Typography variant="body2" color="text.secondary">
-                    Carregando produtos...
-                  </Typography>
+                  <>
+                    <Skeleton variant="rectangular" width={100} height={32} sx={{ borderRadius: 20 }} />
+                    <Skeleton variant="rectangular" width={120} height={32} sx={{ borderRadius: 20 }} />
+                    <Skeleton variant="rectangular" width={90} height={32} sx={{ borderRadius: 20 }} />
+                  </>
                 ) : (
                   products.map((p) => (
                     <Button key={p} size="small" variant="outlined" onClick={() => setProduct(p)}>
@@ -243,12 +246,12 @@ export default function ProductionEntry() {
             {/* Action */}
             <Button
               onClick={handleSubmit}
-              disabled={!isValid}
+              disabled={!isValid || loading}
               size="large"
               variant="contained"
               sx={{ height: 52, borderRadius: 999 }}
             >
-              Inicializar
+              {loading ? "Processando..." : "Inicializar"}
             </Button>
           </Stack>
         </Paper>
