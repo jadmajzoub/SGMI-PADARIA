@@ -1,69 +1,87 @@
-# React + TypeScript + Vite
+# SGMI-PADARIA - Módulo de Gerenciamento de Produção da Padaria
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicação React + TypeScript + Vite com Material-UI para gerenciamento específico da produção da padaria industrial.
 
-Currently, two official plugins are available:
+## 🚀 Como Executar
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Pré-requisitos
+- Node.js 18+ (recomendado: versão LTS mais recente)
+- npm (incluído com Node.js)
+- Backend SGMI rodando na porta 4000 (ver `../sgmi-backend/`)
 
-## Expanding the ESLint configuration
+### Instalação
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1. **Instalar dependências:**
+   ```bash
+   npm install
+   ```
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+2. **Iniciar servidor de desenvolvimento:**
+   ```bash
+   npm run dev
+   ```
+   
+   Acesse: http://localhost:3001
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+### Scripts Disponíveis
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- `npm run dev` - Iniciar servidor de desenvolvimento Vite
+- `npm run build` - Construir para produção (TypeScript + Vite)
+- `npm run lint` - Executar ESLint
+- `npm run preview` - Visualizar build de produção localmente
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Sobre o Sistema
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Este é um módulo especializado do sistema SGMI focado em:
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- **Entrada de Produção**: Formulário para registrar dados de produção (produto, turno, data)
+- **Gerenciamento de Sessões**: Interface para controle de sessões de produção
+- **Comunicação em Tempo Real**: Integração WebSocket para atualizações ao vivo
+- **Tema Claro/Escuro**: Suporte a temas com alternância dinâmica
+
+### Arquitetura
+
+- **App Shell** (`AppShell.tsx`): Layout principal com navegação e controle de tema
+- **Rotas Principais**:
+  - `/` - Formulário de entrada de produção
+  - `/production/session` - Gerenciamento de sessões de produção
+- **WebSocket**: Conexão com `ws://localhost:4000/ws` para atualizações em tempo real
+- **Tema Personalizado**: Material-UI com suporte a modo claro/escuro
+
+### Tecnologias Utilizadas
+
+- React 19 + TypeScript
+- Material-UI v7 (interface)
+- Vite (build tool)  
+- React Router v7 (roteamento)
+- Axios (requisições HTTP)
+- Day.js (manipulação de datas)
+- WebSocket para comunicação em tempo real
+
+### Como Executar o Sistema Completo
+
+Para usar este módulo junto com o sistema principal:
+
+1. **Iniciar o backend:**
+   ```bash
+   # No diretório ../sgmi-backend/
+   npm run dev
+   ```
+
+2. **Iniciar o frontend principal (opcional):**
+   ```bash
+   # No diretório ../SGMI/
+   npm run dev
+   ```
+
+3. **Iniciar este módulo da padaria:**
+   ```bash
+   # Neste diretório (SGMI-PADARIA/)
+   npm run dev
+   ```
+
+### Configuração WebSocket
+
+- Servidor WebSocket: `ws://localhost:4000/ws`
+- Auto-reconexão: máximo 5 tentativas a cada 3 segundos
+- Requer token de autenticação JWT
