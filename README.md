@@ -21,7 +21,7 @@ Aplicação React + TypeScript + Vite com Material-UI para gerenciamento especí
    npm run dev
    ```
    
-   Acesse: http://localhost:3001
+   Acesse: http://localhost:5173
 
 ### Scripts Disponíveis
 
