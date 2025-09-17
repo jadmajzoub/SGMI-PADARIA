@@ -1,6 +1,6 @@
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import NumbersIcon from "@mui/icons-material/Numbers";
+import PlayArrowRounded from "@mui/icons-material/PlayArrowRounded";
 import {
   Box,
   Button,
@@ -12,23 +12,16 @@ import {
   Typography,
   Skeleton,
 } from "@mui/material";
-import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import dayjs, { Dayjs } from "dayjs";
-import "dayjs/locale/pt-br";
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { productService } from "../../services/production";
-import type { ProductionEntryForm, Shift } from "../../types/production";
+import type { Shift } from "../../types/production";
 
 export default function ProductionEntry() {
   const navigate = useNavigate();
 
   const [product, setProduct] = React.useState<string>("");
   const [shift, setShift] = React.useState<Shift>("MANHÃ");
-  const [date, setDate] = React.useState<Dayjs | null>(dayjs());
-  const [bateladas, setBateladas] = React.useState<number>(1);
-  const [duration, setDuration] = React.useState<number>(30);
   const [products, setProducts] = React.useState<string[]>([]);
   const [loading, setLoading] = React.useState(false);
 
@@ -52,69 +45,45 @@ export default function ProductionEntry() {
     loadProducts();
   }, []);
 
-  const isValid = product.trim().length > 0 && !!date && bateladas > 0 && duration > 0;
+  const isValid = product.trim().length > 0;
 
-  const handleSubmit = async () => {
-    if (!isValid || !date) return;
+  const handleStartSession = () => {
+    if (!isValid) return;
 
-    const payload: ProductionEntryForm = {
-      product,
-      shift,
-      date: date.startOf("day").format("DD-MM-YYYY"),
-      bateladas,
-      duration,
-    };
+    // Navigate to production session with current date
+    const today = new Date();
+    const formattedDate = today.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }).replace(/\//g, '-');
 
-    try {
-      setLoading(true);
-      
-      // Import the service dynamically to avoid auto-formatter issues
-      const { simpleBatchService } = await import("../../services/production");
-      
-      // Call the new simplified batch creation API using the proper service
-      const result = await simpleBatchService.create(payload);
-      
-      if (result.success) {
-        alert(`Lote criado com sucesso!\nProduto: ${payload.product}\nTurno: ${payload.shift}\nBateladas: ${payload.bateladas}\nDuração: ${payload.duration} minutos`);
-        
-        // Reset form
-        setProduct("");
-        setShift("MANHÃ");
-        setBateladas(1);
-        setDuration(30);
-        setDate(dayjs());
-      } else {
-        throw new Error(result.message || 'Erro ao criar lote');
-      }
-    } catch (error) {
-      console.error('Error creating batch:', error);
-      alert(`Erro ao criar lote: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
-    } finally {
-      setLoading(false);
-    }
+    // Convert shift to number for URL compatibility
+    const shiftNumber = shift === 'MANHÃ' ? '1' : shift === 'TARDE' ? '2' : '3';
+
+    navigate(`/production/session?product=${encodeURIComponent(product)}&shift=${shiftNumber}&date=${formattedDate}`);
   };
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="pt-br">
-      <Box
+    <Box
+      sx={{
+        display: "grid",
+        placeItems: "center",
+        minHeight: "calc(100vh - 120px)",
+      }}
+    >
+      <Paper
         sx={{
-          display: "grid",
-          placeItems: "center",
-          minHeight: "calc(100vh - 120px)",
+          width: "100%",
+          maxWidth: 680,
+          p: { xs: 3, md: 4 },
+          borderRadius: 4,
         }}
       >
-        <Paper
-          sx={{
-            width: "100%",
-            maxWidth: 680,
-            p: { xs: 3, md: 4 },
-            borderRadius: 4,
-          }}
-        >
-          <Stack spacing={3}>
-            <Typography variant="h3" textAlign="center">
-              Entrada de Produção
-            </Typography>
+        <Stack spacing={3}>
+          <Typography variant="h3" textAlign="center">
+            Iniciar Sessão de Produção
+          </Typography>
 
             {/* Product */}
             <Box>
@@ -176,86 +145,23 @@ export default function ProductionEntry() {
               </TextField>
             </Box>
 
-            {/* Bateladas */}
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
-                BATELADAS
-              </Typography>
-              <TextField
-                type="number"
-                value={bateladas}
-                onChange={(e) => setBateladas(Number(e.target.value))}
-                fullWidth
-                inputProps={{ min: 1 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <NumbersIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                }}
-                helperText="Número de bateladas produzidas"
-              />
-            </Box>
-
-            {/* Duration */}
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
-                DURAÇÃO (MINUTOS)
-              </Typography>
-              <TextField
-                type="number"
-                value={duration}
-                onChange={(e) => setDuration(Number(e.target.value))}
-                fullWidth
-                inputProps={{ min: 1 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <CalendarMonthIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                }}
-                helperText="Tempo total de produção em minutos"
-              />
-            </Box>
-
-            {/* Date */}
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: "block" }}>
-                DATA
-              </Typography>
-              <DatePicker
-                value={date}
-                onChange={(v) => setDate(v)}
-                slotProps={{
-                  textField: {
-                    fullWidth: true,
-                    InputProps: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <CalendarMonthIcon fontSize="small" />
-                        </InputAdornment>
-                      ),
-                    },
-                  },
-                }}
-              />
-            </Box>
+            <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ fontStyle: 'italic' }}>
+              A data, bateladas e duração serão rastreadas automaticamente na sessão de produção em tempo real.
+            </Typography>
 
             {/* Action */}
             <Button
-              onClick={handleSubmit}
+              onClick={handleStartSession}
               disabled={!isValid || loading}
               size="large"
               variant="contained"
+              startIcon={<PlayArrowRounded />}
               sx={{ height: 52, borderRadius: 999 }}
             >
-              {loading ? "Processando..." : "Inicializar"}
+              {loading ? "Carregando..." : "Iniciar Sessão"}
             </Button>
           </Stack>
         </Paper>
       </Box>
-    </LocalizationProvider>
   );
 }
