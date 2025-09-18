@@ -15,7 +15,7 @@ function getBackendConfig(): { backendUrl: string; hostname?: string } {
         hostname: `ec2-${publicIp.replace(/\./g, '-')}.compute-1.amazonaws.com`
       };
     }
-  } catch (error) {
+  } catch {
     // Not on EC2 or metadata service unavailable
   }
 

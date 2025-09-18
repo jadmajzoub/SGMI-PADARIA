@@ -17,6 +17,8 @@ interface BatchStatus {
   estimated_kg: number;
   production_plan_id: string;
   batch_number: number;
+  total_batches: number; // Track total number of batches completed
+  pause_start_time?: Date; // Track when pause started
 }
 
 interface ProductionSessionHook {
@@ -44,7 +46,7 @@ interface ProductionSessionHook {
   stopBatch: () => Promise<void>;
   createNewBatch: () => Promise<void>;
   refreshBatchStatus: () => Promise<void>;
-  handleWebSocketBatchUpdate: (data: any) => void;
+  handleWebSocketBatchUpdate: (data: Record<string, unknown>) => void;
 }
 
 const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL}/api`;
@@ -66,6 +68,18 @@ const loadSessionFromStorage = (sessionState: SessionState) => {
       if (parsed.batchStatus?.end_time) {
         parsed.batchStatus.end_time = new Date(parsed.batchStatus.end_time);
       }
+      if (parsed.batchStatus?.pause_start_time) {
+        parsed.batchStatus.pause_start_time = new Date(parsed.batchStatus.pause_start_time);
+      }
+
+      // Add default values for new fields if they don't exist (migration)
+      if (parsed.batchStatus && !('total_batches' in parsed.batchStatus)) {
+        parsed.batchStatus.total_batches = parsed.batchStatus.batch_number || 1;
+      }
+      if (parsed.batchStatus && !('pause_start_time' in parsed.batchStatus)) {
+        parsed.batchStatus.pause_start_time = undefined;
+      }
+
       return parsed;
     }
   } catch (error) {
@@ -74,7 +88,7 @@ const loadSessionFromStorage = (sessionState: SessionState) => {
   return null;
 };
 
-const saveSessionToStorage = (sessionState: SessionState, data: any) => {
+const saveSessionToStorage = (sessionState: SessionState, data: Record<string, unknown>) => {
   try {
     const key = getSessionKey(sessionState);
     localStorage.setItem(key, JSON.stringify(data));
@@ -85,7 +99,7 @@ const saveSessionToStorage = (sessionState: SessionState, data: any) => {
 
 export function useProductionSession(
   sessionState: SessionState | null,
-  sendMessage?: (message: WebSocketMessage) => void,
+  _sendMessage?: (message: WebSocketMessage) => void,
   authToken?: string
 ): ProductionSessionHook {
   const [batchId, setBatchId] = useState<string | null>(null);
@@ -153,12 +167,14 @@ export function useProductionSession(
           setElapsedSeconds(storedSession.elapsedSeconds || 0);
           console.log('Loaded completed session');
         }
-        // For running sessions, calculate current elapsed time
+        // For running sessions, calculate current elapsed time minus pause duration
         else if (storedSession.batchStatus?.start_time && storedSession.batchStatus?.status === 'IN_PROGRESS') {
           const now = new Date();
           const startTime = storedSession.batchStatus.start_time;
-          const elapsed = Math.floor((now.getTime() - startTime.getTime()) / 1000);
-          setElapsedSeconds(elapsed);
+          const totalElapsed = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+          const pauseDurationSeconds = (storedSession.batchStatus.pause_duration_minutes || 0) * 60;
+          const workingElapsed = Math.max(0, totalElapsed - pauseDurationSeconds);
+          setElapsedSeconds(workingElapsed);
           console.log('Resumed running session');
         } else {
           setElapsedSeconds(storedSession.elapsedSeconds || 0);
@@ -190,107 +206,8 @@ export function useProductionSession(
     }
   }, [sessionState]);
 
-  // Batch actions
-  const performBatchAction = useCallback(async (action: string) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // If we don't have a session yet and action is 'start', start tracking
-      if (!batchId && action === 'start' && sessionState) {
-        console.log('Starting production tracking session');
-
-        // For production tracking, we create a simple local session
-        // This will be saved as a production entry when the session ends
-        const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        setBatchId(sessionId);
-
-        // Set initial batch status for tracking
-        setBatchStatus({
-          id: sessionId,
-          status: 'IN_PROGRESS',
-          start_time: new Date(),
-          end_time: undefined,
-          pause_duration_minutes: 0,
-          estimated_kg: 0,
-          production_plan_id: '', // Not needed for tracking
-          batch_number: 1
-        });
-
-        setElapsedSeconds(0);
-        console.log('Production tracking session started:', sessionId);
-        return;
-      }
-
-      if (!batchId) {
-        setError('Nenhuma sessão de produção ativa');
-        return;
-      }
-
-      // Handle production tracking actions locally
-      const now = new Date();
-
-      switch (action) {
-        case 'pause':
-          if (batchStatus?.status === 'IN_PROGRESS') {
-            setBatchStatus(prev => prev ? { ...prev, status: 'PAUSED' } : null);
-            console.log('Production paused');
-          }
-          break;
-
-        case 'resume':
-          if (batchStatus?.status === 'PAUSED') {
-            setBatchStatus(prev => prev ? { ...prev, status: 'IN_PROGRESS' } : null);
-            console.log('Production resumed');
-          }
-          break;
-
-        case 'stop':
-        case 'complete':
-          if (batchStatus?.status === 'IN_PROGRESS' || batchStatus?.status === 'PAUSED') {
-            // Calculate final elapsed time at the moment of completion
-            const finalElapsedSeconds = batchStatus.start_time
-              ? Math.floor((now.getTime() - batchStatus.start_time.getTime()) / 1000)
-              : elapsedSeconds;
-
-            console.log('Before completing session:', {
-              currentElapsedSeconds: elapsedSeconds,
-              finalElapsedSeconds,
-              batchStatus: batchStatus,
-              startTime: batchStatus.start_time
-            });
-
-            // Update elapsed seconds with final value
-            setElapsedSeconds(finalElapsedSeconds);
-
-            setBatchStatus(prev => prev ? {
-              ...prev,
-              status: 'COMPLETED',
-              end_time: now
-            } : null);
-
-            // Save production entry with final elapsed time
-            await saveProductionEntryWithDuration(finalElapsedSeconds);
-
-            // Keep completed session in storage for persistence through refresh
-            console.log('Production session completed and saved');
-          }
-          break;
-
-        default:
-          console.warn('Unknown action:', action);
-      }
-    } catch (err) {
-      console.error(`Erro ao executar ação ${action}:`, err);
-      setError(err instanceof Error ? err.message : `Erro ao executar ${action}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [batchId, sendMessage, makeAuthenticatedRequest, sessionState]);
-
-
   // Save production entry with specific duration (used when completing session)
-  const saveProductionEntryWithDuration = useCallback(async (durationSeconds: number) => {
+  const saveProductionEntryWithDuration = useCallback(async (durationSeconds: number, endTime: Date) => {
     if (!sessionState || !batchStatus?.start_time) return;
 
     try {
@@ -301,7 +218,7 @@ export function useProductionSession(
       });
 
       // Use the actual number of batches completed during the session
-      const bateladas = batchStatus.batch_number;
+      const bateladas = batchStatus.total_batches;
 
       await makeAuthenticatedRequest('/production/batches/simple', {
         method: 'POST',
@@ -309,6 +226,8 @@ export function useProductionSession(
           product: sessionState.product,
           shift: sessionState.shift,
           date: sessionState.date,
+          startTime: batchStatus.start_time,
+          endTime,
           bateladas,
           duration: durationSeconds
         }),
@@ -328,6 +247,139 @@ export function useProductionSession(
     }
   }, [sessionState, batchStatus, makeAuthenticatedRequest]);
 
+  // Batch actions
+  const performBatchAction = useCallback(async (action: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // If we don't have a session yet and action is 'start', start tracking
+      if (!batchId && action === 'start' && sessionState) {
+        console.log('Starting production tracking session');
+
+        // For production tracking, we create a simple local session
+        // This will be saved as a production entry when the session ends
+        const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+        setBatchId(sessionId);
+
+        // Set initial batch status for tracking
+        setBatchStatus({
+          id: sessionId,
+          status: 'IN_PROGRESS',
+          start_time: new Date(),
+          end_time: undefined,
+          pause_duration_minutes: 0,
+          estimated_kg: 0,
+          production_plan_id: '', // Not needed for tracking
+          batch_number: 1,
+          total_batches: 1,
+          pause_start_time: undefined
+        });
+
+        setElapsedSeconds(0);
+        console.log('Production tracking session started:', sessionId);
+        return;
+      }
+
+      if (!batchId) {
+        setError('Nenhuma sessão de produção ativa');
+        return;
+      }
+
+      // Handle production tracking actions locally
+      const now = new Date();
+
+      switch (action) {
+        case 'pause':
+          if (batchStatus?.status === 'IN_PROGRESS') {
+            setBatchStatus(prev => prev ? {
+              ...prev,
+              status: 'PAUSED',
+              pause_start_time: now
+            } : null);
+            console.log('Production paused');
+          }
+          break;
+
+        case 'resume':
+          if (batchStatus?.status === 'PAUSED') {
+            // Calculate how long we were paused
+            let newPauseDuration = batchStatus.pause_duration_minutes;
+            if (batchStatus.pause_start_time) {
+              const pauseDurationMs = now.getTime() - batchStatus.pause_start_time.getTime();
+              const pauseDurationMinutes = Math.floor(pauseDurationMs / 60000);
+              newPauseDuration += pauseDurationMinutes;
+            }
+
+            setBatchStatus(prev => prev ? {
+              ...prev,
+              status: 'IN_PROGRESS',
+              pause_duration_minutes: newPauseDuration,
+              pause_start_time: undefined
+            } : null);
+            console.log('Production resumed');
+          }
+          break;
+
+        case 'stop':
+        case 'complete':
+          if (batchStatus?.status === 'IN_PROGRESS' || batchStatus?.status === 'PAUSED') {
+            // Calculate final pause duration if currently paused
+            let finalPauseDuration = batchStatus.pause_duration_minutes;
+            if (batchStatus.status === 'PAUSED' && batchStatus.pause_start_time) {
+              const pauseDurationMs = now.getTime() - batchStatus.pause_start_time.getTime();
+              const pauseDurationMinutes = Math.floor(pauseDurationMs / 60000);
+              finalPauseDuration += pauseDurationMinutes;
+            }
+
+            // Calculate final elapsed time minus pause duration
+            const totalElapsedSeconds = batchStatus.start_time
+              ? Math.floor((now.getTime() - batchStatus.start_time.getTime()) / 1000)
+              : elapsedSeconds;
+
+            const finalElapsedSeconds = Math.max(0, totalElapsedSeconds - (finalPauseDuration * 60));
+
+            console.log('Before completing session:', {
+              currentElapsedSeconds: elapsedSeconds,
+              totalElapsedSeconds,
+              pauseDurationMinutes: finalPauseDuration,
+              finalElapsedSeconds,
+              batchStatus: batchStatus,
+              startTime: batchStatus.start_time
+            });
+
+            // Update elapsed seconds with final value
+            setElapsedSeconds(finalElapsedSeconds);
+
+            const endTime = new Date()
+
+            setBatchStatus(prev => prev ? {
+              ...prev,
+              status: 'COMPLETED',
+              end_time: endTime,
+              pause_duration_minutes: finalPauseDuration,
+              pause_start_time: undefined
+            } : null);
+
+            // Save production entry with final elapsed time
+            await saveProductionEntryWithDuration(finalElapsedSeconds, endTime);
+
+            // Keep completed session in storage for persistence through refresh
+            console.log('Production session completed and saved');
+          }
+          break;
+
+        default:
+          console.warn('Unknown action:', action);
+      }
+    } catch (err) {
+      console.error(`Erro ao executar ação ${action}:`, err);
+      setError(err instanceof Error ? err.message : `Erro ao executar ${action}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [batchId, sessionState, batchStatus, elapsedSeconds, saveProductionEntryWithDuration]);
+
   const startBatch = useCallback(() => performBatchAction('start'), [performBatchAction]);
   const pauseBatch = useCallback(() => performBatchAction('pause'), [performBatchAction]);
   const resumeBatch = useCallback(() => performBatchAction('resume'), [performBatchAction]);
@@ -339,13 +391,14 @@ export function useProductionSession(
       return;
     }
 
-    // For production tracking, increment batch number locally
+    // For production tracking, increment batch number and total batches locally
     if (batchStatus) {
       setBatchStatus(prev => prev ? {
         ...prev,
-        batch_number: prev.batch_number + 1
+        batch_number: prev.batch_number + 1,
+        total_batches: prev.total_batches + 1
       } : null);
-      console.log('New batch started, total batches:', (batchStatus.batch_number + 1));
+      console.log('New batch started, total batches:', (batchStatus.total_batches + 1));
     }
   }, [sessionState, batchStatus]);
 
@@ -355,24 +408,28 @@ export function useProductionSession(
     return;
   }, []);
 
-  const handleWebSocketBatchUpdate = useCallback((data: any) => {
+  const handleWebSocketBatchUpdate = useCallback((data: Record<string, unknown>) => {
     if (data.batchId === batchId) {
       // Update batch status from WebSocket data
-      setBatchStatus(prev => prev ? {
-        ...prev,
-        status: data.new_status || data.status || prev.status
-      } : null);
+      const newStatus = data.new_status || data.status;
+      if (newStatus && typeof newStatus === 'string') {
+        setBatchStatus(prev => prev ? {
+          ...prev,
+          status: newStatus as BatchStatus['status']
+        } : null);
+      }
 
       // Update elapsed seconds if provided (from timer broadcasts)
-      if (data.elapsedSeconds !== undefined) {
+      if (data.elapsedSeconds !== undefined && typeof data.elapsedSeconds === 'number') {
         setElapsedSeconds(data.elapsedSeconds);
       }
 
       // Update batch number if provided
-      if (data.batchNumber !== undefined) {
+      if (data.batchNumber !== undefined && typeof data.batchNumber === 'number') {
+        const batchNumber = data.batchNumber as number;
         setBatchStatus(prev => prev ? {
           ...prev,
-          batch_number: data.batchNumber
+          batch_number: batchNumber
         } : null);
       }
     }
@@ -388,8 +445,15 @@ export function useProductionSession(
     const updateTimer = () => {
       const now = new Date();
       const startTime = new Date(batchStatus.start_time!);
-      const elapsed = Math.floor((now.getTime() - startTime.getTime()) / 1000);
-      setElapsedSeconds(elapsed);
+
+      // Calculate total time elapsed since start
+      const totalElapsed = Math.floor((now.getTime() - startTime.getTime()) / 1000);
+
+      // Subtract pause duration to get actual working time
+      const pauseDurationSeconds = batchStatus.pause_duration_minutes * 60;
+      const workingElapsed = Math.max(0, totalElapsed - pauseDurationSeconds);
+
+      setElapsedSeconds(workingElapsed);
 
       // Schedule next update
       timeoutId = window.setTimeout(updateTimer, 1000);
@@ -401,7 +465,7 @@ export function useProductionSession(
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [isRunning, batchStatus?.start_time]);
+  }, [isRunning, batchStatus?.start_time, batchStatus?.pause_duration_minutes]);
 
   // Save session to storage whenever state changes
   useEffect(() => {

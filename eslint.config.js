@@ -1,72 +1,40 @@
 import js from '@eslint/js';
-import typescript from '@typescript-eslint/eslint-plugin';
-import typescriptParser from '@typescript-eslint/parser';
-import prettierConfig from 'eslint-config-prettier';
-import prettier from 'eslint-plugin-prettier';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import globals from 'globals';
+import typescript from 'typescript-eslint';
 
 export default [
   js.configs.recommended,
+  ...typescript.configs.recommended,
   {
-    files: ['src/**/*.ts'],
+    files: ['src/**/*.{ts,tsx}'],
     languageOptions: {
-      parser: typescriptParser,
-      parserOptions: {
-        ecmaVersion: 2020,
-        sourceType: 'module',
-        project: './tsconfig.json',
-      },
+      ecmaVersion: 2020,
+      sourceType: 'module',
       globals: {
-        console: 'readonly',
-        process: 'readonly',
-        Buffer: 'readonly',
-        __dirname: 'readonly',
-        __filename: 'readonly',
-        global: 'readonly',
-        module: 'readonly',
-        require: 'readonly',
-        exports: 'readonly',
-      },
-      env: {
-        "browser": true,
-        "node": true
+        ...globals.browser,
+        ...globals.node,
       },
     },
     plugins: {
-      '@typescript-eslint': typescript,
-      prettier: prettier,
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
     },
     rules: {
-      ...typescript.configs.recommended.rules,
-      ...prettierConfig.rules,
-      
-      // TypeScript specific rules
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      ...reactHooks.configs.recommended.rules,
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true },
+      ],
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: "^_" }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/no-non-null-assertion': 'warn',
-      
-      // General code quality rules
       'no-console': 'off',
       'no-debugger': 'error',
       'prefer-const': 'error',
       'no-var': 'error',
-      
-      // Import organization
-      'sort-imports': ['error', { 
-        ignoreCase: true, 
-        ignoreDeclarationSort: true 
-      }],
-      
-      // Prettier integration
-      'prettier/prettier': ['error', {
-        singleQuote: true,
-        trailingComma: 'es5',
-        tabWidth: 2,
-        semi: true,
-        printWidth: 80,
-        endOfLine: 'lf',
-      }],
     },
   },
   {
