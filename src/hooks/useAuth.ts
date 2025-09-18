@@ -80,7 +80,7 @@ export function useAuth() {
         isLoading: false,
         lastUpdate: Date.now()
       }
-      setAuthState(prev => {
+      setAuthState(() => {
         return newState
       })
       

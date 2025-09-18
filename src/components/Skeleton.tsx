@@ -1,4 +1,4 @@
-import { Box, Paper, Stack, Typography, Skeleton as MuiSkeleton, Button } from '@mui/material'
+import { Box, Paper, Stack, Skeleton as MuiSkeleton } from '@mui/material'
 
 export function SkeletonProductionEntry() {
   return (

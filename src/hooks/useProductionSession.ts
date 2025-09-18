@@ -83,15 +83,6 @@ const saveSessionToStorage = (sessionState: SessionState, data: any) => {
   }
 };
 
-const clearSessionFromStorage = (sessionState: SessionState) => {
-  try {
-    const key = getSessionKey(sessionState);
-    localStorage.removeItem(key);
-  } catch (error) {
-    console.warn('Failed to clear session from storage:', error);
-  }
-};
-
 export function useProductionSession(
   sessionState: SessionState | null,
   sendMessage?: (message: WebSocketMessage) => void,
@@ -297,48 +288,6 @@ export function useProductionSession(
     }
   }, [batchId, sendMessage, makeAuthenticatedRequest, sessionState]);
 
-  // Save production entry when session completes
-  const saveProductionEntry = useCallback(async () => {
-    if (!sessionState || !batchStatus?.start_time) return;
-
-    try {
-      console.log('saveProductionEntry called with:', {
-        elapsedSeconds,
-        batchStatus,
-        sessionState
-      });
-
-      // Use the current elapsed seconds directly - no conversion needed
-      const durationSeconds = elapsedSeconds;
-
-      // Use the actual number of batches completed during the session
-      const bateladas = batchStatus.batch_number;
-
-      await makeAuthenticatedRequest('/production/batches/simple', {
-        method: 'POST',
-        body: JSON.stringify({
-          product: sessionState.product,
-          shift: sessionState.shift,
-          date: sessionState.date,
-          bateladas,
-          duration: durationSeconds
-        }),
-      });
-
-      console.log('Production entry saved:', {
-        product: sessionState.product,
-        shift: sessionState.shift,
-        date: sessionState.date,
-        bateladas,
-        duration: durationSeconds,
-        elapsedSeconds,
-        displayTime: `${Math.floor(elapsedSeconds / 60)}:${(elapsedSeconds % 60).toString().padStart(2, '0')}`
-      });
-    } catch (error) {
-      console.error('Failed to save production entry:', error);
-      setError('Erro ao salvar produção');
-    }
-  }, [sessionState, batchStatus, elapsedSeconds, makeAuthenticatedRequest]);
 
   // Save production entry with specific duration (used when completing session)
   const saveProductionEntryWithDuration = useCallback(async (durationSeconds: number) => {

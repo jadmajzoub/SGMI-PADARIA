@@ -1,11 +1,10 @@
-import React from 'react';
+import type { PaletteMode } from '@mui/material';
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { AppShell } from '../components/AppShell';
 import { LoginPage } from '../containers/LoginPage';
 import ProductionEntry from '../containers/ProductionEntry';
 import ProductionSession from '../containers/ProductionSession';
-import { AppShell } from '../components/AppShell';
-import type { AuthError, LoginCredentials, AuthUser } from '../types/auth';
-import type { PaletteMode } from '@mui/material';
+import type { AuthError, AuthUser, LoginCredentials } from '../types/auth';
 
 interface Props {
   isAuthenticated: boolean
@@ -26,9 +25,6 @@ const hasRole = (user: AuthUser | null, requiredRoles: string[]): boolean => {
 export default function AppRoutes({ 
   isAuthenticated, 
   user, 
-  authError, 
-  onLogin, 
-  onClearAuthError,
   mode,
   onToggleMode 
 }: Props) {
