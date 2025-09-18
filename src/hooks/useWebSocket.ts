@@ -6,7 +6,7 @@ export interface WebSocketMessage {
   timestamp?: Date;
 }
 
-const WEBSOCKET_URL = 'ws://localhost:4000/ws';
+const WEBSOCKET_URL = `${import.meta.env.VITE_WS_URL}/ws`;
 const INITIAL_RECONNECT_DELAY = 1000; // 1 second
 const MAX_RECONNECT_DELAY = 30000; // 30 seconds
 const MAX_RECONNECT_ATTEMPTS = 10;
